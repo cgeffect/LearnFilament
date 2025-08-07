@@ -1,0 +1,13 @@
+CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO
+EXCLUDED_ARCHS[sdk=iphonesimulator*] = arm64
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) COCOAPODS=1
+HEADER_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Headers/Public" "${PODS_ROOT}/Headers/Public/Filament"
+LIBRARY_SEARCH_PATHS = $(inherited) "${PODS_ROOT}/Filament/lib/universal"
+OTHER_LDFLAGS = $(inherited) -ObjC -l"backend" -l"basis_transcoder" -l"camutils" -l"civetweb" -l"dracodec" -l"filabridge" -l"filaflat" -l"filamat" -l"filament" -l"filameshio" -l"geometry" -l"gltfio_core" -l"ibl" -l"image" -l"ktxreader" -l"meshoptimizer" -l"shaders" -l"smol-v" -l"stb" -l"uberarchive" -l"uberzlib" -l"utils" -l"viewer" -l"zstd"
+OTHER_MODULE_VERIFIER_FLAGS = $(inherited) "-F${PODS_CONFIGURATION_BUILD_DIR}/Filament"
+PODS_BUILD_DIR = ${BUILD_DIR}
+PODS_CONFIGURATION_BUILD_DIR = ${PODS_BUILD_DIR}/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)
+PODS_PODFILE_DIR_PATH = ${SRCROOT}/.
+PODS_ROOT = ${SRCROOT}/Pods
+PODS_XCFRAMEWORKS_BUILD_DIR = $(PODS_CONFIGURATION_BUILD_DIR)/XCFrameworkIntermediates
+USE_RECURSIVE_SCRIPT_INPUTS_IN_SCRIPT_PHASES = YES

@@ -13,7 +13,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-list(APPEND LIVE_TRD_INCLUDE ./src)
 list(APPEND LIVE_TRD_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/filament/include/)
 
 # file(GLOB_RECURSE libs1 ${CMAKE_CURRENT_SOURCE_DIR}/filament/lib/*.a)
@@ -50,7 +49,7 @@ find_library(OpenGL_FRAMEWORK OpenGL)
 list(APPEND SYS_LIBS ${OpenGL_FRAMEWORK})
 
 file(GLOB_RECURSE allCpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/main.cpp
 )
 
 add_executable(hello_filament ${allCpp})
