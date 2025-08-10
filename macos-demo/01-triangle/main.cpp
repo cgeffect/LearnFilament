@@ -1,17 +1,8 @@
-#include <iostream>
-#include <cmath>
-#include <chrono>
-
-// SDL includes
-#include <SDL3/SDL.h>
-
-// Filament includes
 #include <filament/Engine.h>
 #include <filament/Renderer.h>
 #include <filament/Scene.h>
-#include <filament/Camera.h>
 #include <filament/View.h>
-#include <filament/Viewport.h>
+#include <filament/Camera.h>
 #include <filament/VertexBuffer.h>
 #include <filament/IndexBuffer.h>
 #include <filament/Material.h>
@@ -19,313 +10,298 @@
 #include <filament/RenderableManager.h>
 #include <filament/TransformManager.h>
 #include <filament/Skybox.h>
+#include <filament/SwapChain.h>
+#include <filament/Viewport.h>
+
 #include <utils/EntityManager.h>
-#include <backend/DriverEnums.h>
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_metal.h>
+
+#include <cmath>
+#include <chrono>
+#include <iostream>
 
 using namespace filament;
 using utils::Entity;
-using utils::EntityManager;
 
-// Vertex structure for our triangle
-struct Vertex {
-    filament::math::float2 position;
-    uint32_t color;
-};
-
-// Triangle vertices (equilateral triangle)
-static const Vertex TRIANGLE_VERTICES[3] = {
-    {{1, 0}, 0xffff0000u},                    // Red vertex
-    {{cos(M_PI * 2 / 3), sin(M_PI * 2 / 3)}, 0xff00ff00u},  // Green vertex
-    {{cos(M_PI * 4 / 3), sin(M_PI * 4 / 3)}, 0xff0000ffu},  // Blue vertex
-};
-
-static constexpr uint16_t TRIANGLE_INDICES[3] = { 0, 1, 2 };
-
-// Include the pre-compiled material package
+// 预编译的材质数据
 static constexpr uint8_t BAKED_COLOR_PACKAGE[] = {
 #include "bakedColor.inc"
 };
 
-class TriangleRenderer {
-private:
-    Engine* engine = nullptr;
-    Renderer* renderer = nullptr;
-    Scene* scene = nullptr;
-    View* view = nullptr;
-    Camera* camera = nullptr;
-    Entity cameraEntity;
-    SwapChain* swapChain = nullptr;
-    
-    VertexBuffer* vertexBuffer = nullptr;
-    IndexBuffer* indexBuffer = nullptr;
-    Material* material = nullptr;
-    MaterialInstance* materialInstance = nullptr;
-    Entity renderableEntity;
-    Skybox* skybox = nullptr;
-    
-    SDL_Window* window = nullptr;
-    SDL_Renderer* sdlRenderer = nullptr;
-    SDL_MetalView metalView = nullptr;
-    
-    int windowWidth = 800;
-    int windowHeight = 600;
-    
-    std::chrono::high_resolution_clock::time_point startTime;
-
-public:
-    bool initialize() {
-        std::cout << "Starting initialization..." << std::endl;
-        
-        // Initialize SDL
-        std::cout << "Attempting to initialize SDL..." << std::endl;
-        std::cout << "SDL_GetError before init: '" << SDL_GetError() << "'" << std::endl;
-        bool result = SDL_Init(SDL_INIT_VIDEO);
-        std::cout << "SDL_Init result: " << (result ? "true" : "false") << std::endl;
-        if (!result) {
-            std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
-            return false;
-        }
-        
-        std::cout << "SDL initialized successfully" << std::endl;
-        
-        // Create window with Metal support
-        window = SDL_CreateWindow("Filament Triangle Demo", 
-                                 windowWidth, windowHeight, 
-                                 SDL_WINDOW_METAL | SDL_WINDOW_RESIZABLE);
-        if (!window) {
-            std::cerr << "Window creation failed: " << SDL_GetError() << std::endl;
-            return false;
-        }
-        
-        std::cout << "Window created successfully" << std::endl;
-        
-        // Create renderer
-        sdlRenderer = SDL_CreateRenderer(window, NULL);
-        if (!sdlRenderer) {
-            std::cerr << "Renderer creation failed: " << SDL_GetError() << std::endl;
-            return false;
-        }
-        
-        std::cout << "Renderer created successfully" << std::endl;
-        
-        // Initialize Filament with Metal backend
-        engine = Engine::create(backend::Backend::METAL);
-        if (!engine) {
-            std::cerr << "Failed to create Filament engine" << std::endl;
-            return false;
-        }
-        
-        std::cout << "Filament engine created successfully" << std::endl;
-        
-        // Create SwapChain from SDL window
-        // For SDL3, we need to create a Metal view first
-        metalView = SDL_Metal_CreateView(window);
-        if (!metalView) {
-            std::cerr << "Failed to create Metal view: " << SDL_GetError() << std::endl;
-            return false;
-        }
-        
-        void* metalLayer = SDL_Metal_GetLayer(metalView);
-        if (!metalLayer) {
-            std::cerr << "Failed to get Metal layer: " << SDL_GetError() << std::endl;
-            return false;
-        }
-        
-        swapChain = engine->createSwapChain(metalLayer);
-        if (!swapChain) {
-            std::cerr << "Failed to create SwapChain" << std::endl;
-            return false;
-        }
-        std::cout << "SwapChain created successfully" << std::endl;
-        
-        renderer = engine->createRenderer();
-        if (!renderer) {
-            std::cerr << "Failed to create renderer" << std::endl;
-            return false;
-        }
-        
-        scene = engine->createScene();
-        if (!scene) {
-            std::cerr << "Failed to create scene" << std::endl;
-            return false;
-        }
-        
-        view = engine->createView();
-        if (!view) {
-            std::cerr << "Failed to create view" << std::endl;
-            return false;
-        }
-        
-        // Create camera
-        cameraEntity = EntityManager::get().create();
-        camera = engine->createCamera(cameraEntity);
-        view->setCamera(camera);
-        
-        // Create skybox
-        skybox = Skybox::Builder().color({0.1f, 0.125f, 0.25f, 1.0f}).build(*engine);
-        scene->setSkybox(skybox);
-        
-        // Disable post-processing for simplicity
-        view->setPostProcessingEnabled(false);
-        
-        // Create vertex buffer
-        static_assert(sizeof(Vertex) == 12, "Vertex size should be 12 bytes");
-        vertexBuffer = VertexBuffer::Builder()
-            .vertexCount(3)
-            .bufferCount(1)
-            .attribute(VertexAttribute::POSITION, 0, VertexBuffer::AttributeType::FLOAT2, 0, 12)
-            .attribute(VertexAttribute::COLOR, 0, VertexBuffer::AttributeType::UBYTE4, 8, 12)
-            .normalized(VertexAttribute::COLOR)
-            .build(*engine);
-        
-        vertexBuffer->setBufferAt(*engine, 0,
-            VertexBuffer::BufferDescriptor(TRIANGLE_VERTICES, 36, nullptr));
-        
-        // Create index buffer
-        indexBuffer = IndexBuffer::Builder()
-            .indexCount(3)
-            .bufferType(IndexBuffer::IndexType::USHORT)
-            .build(*engine);
-        
-        indexBuffer->setBuffer(*engine,
-            IndexBuffer::BufferDescriptor(TRIANGLE_INDICES, 6, nullptr));
-        
-        // Create material using the pre-compiled package
-        std::cout << "Creating material..." << std::endl;
-        
-        material = Material::Builder()
-            .package((void*) BAKED_COLOR_PACKAGE, sizeof(BAKED_COLOR_PACKAGE))
-            .build(*engine);
-        
-        if (!material) {
-            std::cerr << "Failed to create material" << std::endl;
-            return false;
-        }
-        
-        materialInstance = material->getDefaultInstance();
-        std::cout << "Material created successfully" << std::endl;
-        
-        // Create renderable
-        renderableEntity = EntityManager::get().create();
-        RenderableManager::Builder(1)
-            .boundingBox({{ -1, -1, -1 }, { 1, 1, 1 }})
-            .material(0, materialInstance)
-            .geometry(0, RenderableManager::PrimitiveType::TRIANGLES, vertexBuffer, indexBuffer, 0, 3)
-            .culling(false)
-            .receiveShadows(false)
-            .castShadows(false)
-            .build(*engine, renderableEntity);
-        
-        std::cout << "Renderable created successfully" << std::endl;
-        
-        scene->addEntity(renderableEntity);
-        
-        // Set up view
-        view->setScene(scene);
-        
-        // Set up viewport
-        view->setViewport(Viewport{0, 0, (uint32_t)windowWidth, (uint32_t)windowHeight});
-        
-        startTime = std::chrono::high_resolution_clock::now();
-        
-        return true;
-    }
-    
-    void render() {
-        // Calculate time for rotation
-        auto now = std::chrono::high_resolution_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime);
-        double timeSeconds = duration.count() / 1000.0;
-        
-        // Update camera projection
-        constexpr float ZOOM = 1.5f;
-        const float aspect = (float)windowWidth / windowHeight;
-        camera->setProjection(Camera::Projection::ORTHO,
-            -aspect * ZOOM, aspect * ZOOM,
-            -ZOOM, ZOOM, 0, 1);
-        
-        // Rotate the triangle
-        auto& tcm = engine->getTransformManager();
-        tcm.setTransform(tcm.getInstance(renderableEntity),
-            filament::math::mat4f::rotation(timeSeconds, filament::math::float3{ 0, 0, 1 }));
-        
-        // Render
-        if (renderer->beginFrame(swapChain)) {
-            renderer->render(view);
-            renderer->endFrame();
-        }
-    }
-    
-    bool handleEvents() {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            switch (event.type) {
-                case SDL_EVENT_QUIT:
-                    return false;
-                case SDL_EVENT_WINDOW_RESIZED:
-                    windowWidth = event.window.data1;
-                    windowHeight = event.window.data2;
-                    view->setViewport(Viewport{0, 0, (uint32_t)windowWidth, (uint32_t)windowHeight});
-                    break;
-            }
-        }
-        return true;
-    }
-    
-    void cleanup() {
-        if (engine) {
-            engine->destroy(skybox);
-            engine->destroy(renderableEntity);
-            engine->destroy(materialInstance);
-            engine->destroy(material);
-            engine->destroy(vertexBuffer);
-            engine->destroy(indexBuffer);
-            engine->destroyCameraComponent(cameraEntity);
-            EntityManager::get().destroy(cameraEntity);
-            engine->destroy(view);
-            engine->destroy(scene);
-            engine->destroy(renderer);
-            if (swapChain) {
-                engine->destroy(swapChain);
-            }
-            Engine::destroy(&engine);
-        }
-        
-        if (metalView) {
-            SDL_Metal_DestroyView(metalView);
-        }
-        
-        if (sdlRenderer) {
-            SDL_DestroyRenderer(sdlRenderer);
-        }
-        
-        if (window) {
-            SDL_DestroyWindow(window);
-        }
-        
-        SDL_Quit();
-    }
-    
-    void run() {
-        while (handleEvents()) {
-            render();
-            SDL_Delay(16); // ~60 FPS
-        }
-    }
+// 顶点结构
+// ========================================
+// 顶点数据结构定义
+// ========================================
+// 每个顶点包含两个信息：
+// 1. position: 顶点的位置坐标 (x, y)
+// 2. color: 顶点的颜色值 (RGBA格式)
+struct Vertex {
+    filament::math::float2 position;  // 2D位置坐标，使用float2类型 (x, y)
+    uint32_t color;                   // 颜色值，使用32位无符号整数存储RGBA
 };
 
+// 辅助函数：将RGBA分量组合成32位颜色值
+// 虽然我们想用 {255, 0, 0, 255} 这样的格式来定义颜色
+// 但最终必须打包成一个 uint32_t 传给 GPU
+// 格式：0xAARRGGBB (A=透明度, R=红, G=绿, B=蓝)
+inline uint32_t makeColor(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 255) {
+    return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+// ========================================
+// 三角形顶点数据详解
+// ========================================
+// 我们定义一个等边三角形，三个顶点分别位于：
+// 1. 顶点0: (1, 0) - 正右方，红色
+// 2. 顶点1: (-0.5, 0.866) - 左上方，绿色  
+// 3. 顶点2: (-0.5, -0.866) - 左下方，蓝色
+//
+// 注意：虽然我们分开写RGBA，但 makeColor() 函数会将它们打包成一个 uint32_t
+// 这是 GPU 要求的格式，不能直接使用四个 uint8_t
+static const Vertex TRIANGLE_VERTICES[3] = {
+    {{1.0f, 0.0f}, makeColor(255, 0, 0, 255)},      // 顶点0: 正右方，红色
+    {{-0.5f, 0.866f}, makeColor(0, 255, 0, 255)},   // 顶点1: 左上方，绿色
+    {{-0.5f, -0.866f}, makeColor(0, 0, 255, 255)},  // 顶点2: 左下方，蓝色
+};
+
+// ========================================
+// 三角形索引数据详解
+// ========================================
+// 索引定义了如何连接顶点形成三角形：
+// 索引 [0, 1, 2] 表示：
+// - 从顶点0连接到顶点1
+// - 从顶点1连接到顶点2  
+// - 从顶点2连接回顶点0
+// 这样就形成了一个完整的三角形
+static constexpr uint16_t TRIANGLE_INDICES[3] = { 0, 1, 2 };
+
 int main() {
-    TriangleRenderer renderer;
-    
-    if (!renderer.initialize()) {
-        std::cerr << "Failed to initialize renderer" << std::endl;
+    // ========================================
+    // 第一步：初始化 SDL 和创建窗口
+    // ========================================
+    // SDL 是一个跨平台的窗口和输入库，用于创建窗口和处理用户输入
+    if (!SDL_Init(SDL_INIT_VIDEO)) {
+        std::cerr << "SDL initialization failed: " << SDL_GetError() << std::endl;
         return 1;
     }
+
+    // 创建 SDL 窗口，指定大小和标志
+    // SDL_WINDOW_METAL: 启用 Metal 支持（macOS 的图形 API）
+    // SDL_WINDOW_RESIZABLE: 允许用户调整窗口大小
+    SDL_Window* window = SDL_CreateWindow("Hello Triangle", 
+                                         800, 600, 
+                                         SDL_WINDOW_METAL | SDL_WINDOW_RESIZABLE);
+    if (!window) {
+        std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
+        SDL_Quit();
+        return 1;
+    }
+
+    // 创建 SDL 渲染器（虽然 Filament 会处理实际渲染，但 SDL 需要这个）
+    SDL_Renderer* sdlRenderer = SDL_CreateRenderer(window, nullptr);
+    if (!sdlRenderer) {
+        std::cerr << "Failed to create renderer: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // 创建 Metal 视图，这是 Filament 与 Metal 图形 API 交互的桥梁
+    SDL_MetalView metalView = SDL_Metal_CreateView(window);
+    if (!metalView) {
+        std::cerr << "Failed to create Metal view: " << SDL_GetError() << std::endl;
+        SDL_DestroyRenderer(sdlRenderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // 获取 Metal 层，Filament 需要这个来创建渲染目标
+    void* metalLayer = SDL_Metal_GetLayer(metalView);
+    if (!metalLayer) {
+        std::cerr << "Failed to get Metal layer: " << SDL_GetError() << std::endl;
+        SDL_Metal_DestroyView(metalView);
+        SDL_DestroyRenderer(sdlRenderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // ========================================
+    // 第二步：初始化 Filament 引擎和核心组件
+    // ========================================
+    // 创建 Filament 引擎，这是所有 Filament 功能的核心
+    // backend::Backend::METAL 指定使用 Metal 图形 API（macOS 专用）
+    Engine* engine = Engine::create(backend::Backend::METAL);
+    if (!engine) {
+        std::cerr << "Failed to create Filament engine" << std::endl;
+        SDL_Metal_DestroyView(metalView);
+        SDL_DestroyRenderer(sdlRenderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // 创建交换链（SwapChain），用于在 CPU 和 GPU 之间交换渲染结果
+    // 它连接 Filament 和窗口系统，确保渲染内容能显示在屏幕上
+    SwapChain* swapChain = engine->createSwapChain(metalLayer);
+    if (!swapChain) {
+        std::cerr << "Failed to create SwapChain" << std::endl;
+        engine->destroy(engine);
+        SDL_Metal_DestroyView(metalView);
+        SDL_DestroyRenderer(sdlRenderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // 创建 Filament 的三个核心组件：
+    // 1. Renderer: 负责实际的渲染工作
+    // 2. Scene: 包含所有要渲染的对象（几何体、光源等）
+    // 3. View: 定义如何观察场景（相机、视口等）
+    Renderer* renderer = engine->createRenderer();
+    Scene* scene = engine->createScene();
+    View* view = engine->createView();
+
+    // ========================================
+    // 第三步：设置场景环境（天空盒和相机）
+    // ========================================
+    // 创建天空盒，为场景提供背景色
+    // 这里设置为深蓝色 {0.1, 0.125, 0.25, 1.0}，最后一个参数是透明度
+    Skybox* skybox = Skybox::Builder().color({0.1, 0.125, 0.25, 1.0}).build(*engine);
+    scene->setSkybox(skybox);
+
+    // 创建相机，用于观察场景
+    // Entity 是 Filament 中所有对象的标识符
+    Entity camera = utils::EntityManager::get().create();
+    Camera* cam = engine->createCamera(camera);
+    view->setCamera(cam);  // 将相机绑定到视图
+
+    // ========================================
+    // 第四步：创建几何体数据（顶点和索引缓冲区）
+    // ========================================
+    // 顶点缓冲区（VertexBuffer）存储三角形的顶点数据
+    // 每个顶点包含位置（POSITION）和颜色（COLOR）信息
+    VertexBuffer* vb = VertexBuffer::Builder()
+        .vertexCount(3)  // 三角形有3个顶点
+        .bufferCount(1)  // 使用1个缓冲区
+        .attribute(VertexAttribute::POSITION, 0, VertexBuffer::AttributeType::FLOAT2, 0, 12)  // 位置：2个float，偏移0，步长12字节
+        .attribute(VertexAttribute::COLOR, 0, VertexBuffer::AttributeType::UBYTE4, 8, 12)    // 颜色：4个字节，偏移8，步长12字节
+        .normalized(VertexAttribute::COLOR)  // 颜色值需要归一化（0-255转换为0.0-1.0）
+        .build(*engine);
     
-    std::cout << "Triangle demo started. Press Ctrl+C or close window to exit." << std::endl;
+    // 将顶点数据上传到GPU
+    vb->setBufferAt(*engine, 0, VertexBuffer::BufferDescriptor(TRIANGLE_VERTICES, 36, nullptr));
+
+    // 索引缓冲区（IndexBuffer）定义如何连接顶点形成三角形
+    // 虽然这里三角形很简单（0,1,2），但索引缓冲区在复杂几何体中很有用
+    IndexBuffer* ib = IndexBuffer::Builder()
+        .indexCount(3)  // 3个索引
+        .bufferType(IndexBuffer::IndexType::USHORT)  // 使用16位无符号整数
+        .build(*engine);
     
-    renderer.run();
-    renderer.cleanup();
+    // 将索引数据上传到GPU
+    ib->setBuffer(*engine, IndexBuffer::BufferDescriptor(TRIANGLE_INDICES, 6, nullptr));
+
+    // ========================================
+    // 第五步：创建材质和可渲染实体
+    // ========================================
+    // 材质（Material）定义物体的外观，包括颜色、纹理、光照等
+    // 这里使用预编译的材质包，包含着色器代码和材质参数
+    Material* material = Material::Builder()
+        .package((void*)BAKED_COLOR_PACKAGE, sizeof(BAKED_COLOR_PACKAGE))
+        .build(*engine);
+
+    // 创建可渲染实体（Renderable），这是 Filament 渲染的核心概念
+    // 它将几何体（顶点+索引）和材质组合成一个可渲染的对象
+    Entity renderable = utils::EntityManager::get().create();
+    RenderableManager::Builder(1)  // 1表示有1个子网格
+        .boundingBox({{ -1, -1, -1 }, { 1, 1, 1 }})  // 包围盒，用于视锥剔除
+        .material(0, material->getDefaultInstance())  // 绑定材质到第0个子网格
+        .geometry(0, RenderableManager::PrimitiveType::TRIANGLES, vb, ib, 0, 3)  // 绑定几何体
+        .culling(false)      // 禁用背面剔除
+        .receiveShadows(false)  // 不接收阴影
+        .castShadows(false)     // 不投射阴影
+        .build(*engine, renderable);
+
+    // 将可渲染实体添加到场景中
+    scene->addEntity(renderable);
+    // 将场景绑定到视图
+    view->setScene(scene);
+
+    // ========================================
+    // 第六步：设置渲染参数（视口和相机投影）
+    // ========================================
+    // 设置视口，定义渲染区域在窗口中的位置和大小
+    // Viewport{0, 0, 800, 600} 表示从窗口左上角开始，渲染800x600像素
+    view->setViewport(Viewport{0, 0, 800, 600});
+
+    // 设置相机投影，定义如何将3D世界投影到2D屏幕
+    // 这里使用正交投影（ORTHO），适合2D渲染
+    constexpr float ZOOM = 1.5f;  // 缩放因子
+    constexpr float ASPECT = 800.0f / 600.0f;  // 宽高比
+    cam->setProjection(Camera::Projection::ORTHO,
+        -ASPECT * ZOOM, ASPECT * ZOOM,  // 左右边界
+        -ZOOM, ZOOM,                    // 上下边界
+        0, 1);                          // 近远平面
+
+    // ========================================
+    // 第七步：主渲染循环
+    // ========================================
+    bool running = true;
+    auto startTime = std::chrono::high_resolution_clock::now();  // 记录开始时间，用于动画
     
+    while (running) {
+        // 处理用户输入事件（如关闭窗口）
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            if (event.type == SDL_EVENT_QUIT) {
+                running = false;
+            }
+        }
+
+        // 计算动画时间，用于旋转动画
+        auto now = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - startTime);
+        float time = duration.count() / 1000.0f;  // 转换为秒
+
+        // 应用旋转变换，让三角形绕Z轴旋转
+        auto& tcm = engine->getTransformManager();  // 获取变换管理器
+        tcm.setTransform(tcm.getInstance(renderable),  // 设置实体的变换
+            filament::math::mat4f::rotation(time, filament::math::float3{ 0, 0, 1 }));  // 绕Z轴旋转
+
+        // 执行渲染
+        if (renderer->beginFrame(swapChain)) {  // 开始渲染帧
+            renderer->render(view);              // 渲染视图
+            renderer->endFrame();                // 结束渲染帧
+        }
+    }
+
+    // ========================================
+    // 第八步：清理资源（非常重要！）
+    // ========================================
+    // 按照创建的反序销毁 Filament 对象，避免内存泄漏
+    engine->destroy(renderable);  // 销毁可渲染实体
+    utils::EntityManager::get().destroy(renderable);  // 销毁实体ID
+    engine->destroy(material);    // 销毁材质
+    engine->destroy(vb);          // 销毁顶点缓冲区
+    engine->destroy(ib);          // 销毁索引缓冲区
+    engine->destroy(skybox);      // 销毁天空盒
+    engine->destroyCameraComponent(camera);  // 销毁相机组件
+    utils::EntityManager::get().destroy(camera);  // 销毁相机实体ID
+    engine->destroy(view);        // 销毁视图
+    engine->destroy(scene);       // 销毁场景
+    engine->destroy(renderer);    // 销毁渲染器
+    engine->destroy(swapChain);   // 销毁交换链
+    engine->destroy(engine);      // 销毁引擎
+
+    // 清理 SDL 资源
+    SDL_Metal_DestroyView(metalView);
+    SDL_DestroyRenderer(sdlRenderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+
     return 0;
 }
