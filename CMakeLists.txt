@@ -14,9 +14,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 list(APPEND LIVE_TRD_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/filament/include/)
+list(APPEND LIVE_TRD_INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libSDL/deploy/include/)
 
-# file(GLOB_RECURSE libs1 ${CMAKE_CURRENT_SOURCE_DIR}/filament/lib/*.a)
-file(GLOB_RECURSE libs2 ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/filament/lib/arm64/*.a)
+set(SDL3_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libSDL/deploy/lib/libSDL3.a)
+file(GLOB_RECURSE filament_lib ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/filament/lib/arm64/*.a)
 
 # finds all required platform libraries.
 find_library(LZMA_FRAMEWORK lzma)
@@ -47,6 +48,9 @@ find_library(APP_FRAMEWORK AppKit)
 list(APPEND SYS_LIBS ${APP_FRAMEWORK})
 find_library(OpenGL_FRAMEWORK OpenGL)
 list(APPEND SYS_LIBS ${OpenGL_FRAMEWORK})
+# SDL 使用
+set(SDL3_LIBS -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo -Wl,-framework,Cocoa -Wl,-framework,IOKit -Wl,-framework,ForceFeedback -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AVFoundation -Wl,-framework,Foundation -Wl,-weak_framework,GameController -Wl,-weak_framework,Metal -Wl,-weak_framework,QuartzCore -Wl,-framework,CoreHaptics -lpthread -Wl,-weak_framework,UniformTypeIdentifiers -lm)
+list(APPEND SYS_LIBS ${SDL3_LIBS})
 
 file(GLOB_RECURSE allCpp 
     ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/main.cpp
@@ -54,6 +58,6 @@ file(GLOB_RECURSE allCpp
 
 add_executable(hello_filament ${allCpp})
 target_include_directories(hello_filament PRIVATE ${LIVE_TRD_INCLUDE})
-target_link_libraries(hello_filament PRIVATE ${SYS_LIBS} ${libs1} ${libs2})
+target_link_libraries(hello_filament PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib} pthread m)
 
 message("--end rtcapp complie---")

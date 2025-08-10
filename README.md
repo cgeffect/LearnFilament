@@ -1,5 +1,5 @@
 
-macos 使用cmake编译, 并且把头文件和库文件安装到当前目录脚本
+macos 使用cmake编译arm64架构的filament, 并且把头文件和库文件安装到当前目录脚本
 ```
 cd filament
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../release/filament ../..
