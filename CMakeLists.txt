@@ -65,4 +65,21 @@ add_executable(03-morphing ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/03-morphing/ma
 target_include_directories(03-morphing PRIVATE ${LIVE_TRD_INCLUDE})
 target_link_libraries(03-morphing PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
 
+add_executable(04-pbr ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/04-pbr/main.cpp)
+target_include_directories(04-pbr PRIVATE ${LIVE_TRD_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources)
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/resources.apple.S PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources")
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/monkey.apple.S PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources")
+target_compile_options(04-pbr PRIVATE -Wa,-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources)
+target_link_libraries(04-pbr PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib} ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/resources.apple.S ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/monkey.apple.S)
+
+# 自动复制资源文件到构建目录
+add_custom_command(TARGET 04-pbr PRE_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/resources.bin
+        ${CMAKE_CURRENT_BINARY_DIR}/resources.bin
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/monkey.bin
+        ${CMAKE_CURRENT_BINARY_DIR}/monkey.bin
+)
+
 message("--end rtcapp complie---")
