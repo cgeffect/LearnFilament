@@ -57,6 +57,10 @@ add_executable(01-triangle ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/01-triangle/ma
 target_include_directories(01-triangle PRIVATE ${LIVE_TRD_INCLUDE})
 target_link_libraries(01-triangle PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
 
+add_executable(01-rectangle ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/01-rectangle/main.cpp)
+target_include_directories(01-rectangle PRIVATE ${LIVE_TRD_INCLUDE})
+target_link_libraries(01-rectangle PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
+
 add_executable(02-cube ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/02-cube/main.cpp)
 target_include_directories(02-cube PRIVATE ${LIVE_TRD_INCLUDE})
 target_link_libraries(02-cube PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
@@ -67,9 +71,6 @@ target_link_libraries(03-morphing PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament
 
 add_executable(04-pbr ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/04-pbr/main.cpp)
 target_include_directories(04-pbr PRIVATE ${LIVE_TRD_INCLUDE} ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources)
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/resources.apple.S PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources")
-set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/monkey.apple.S PROPERTIES COMPILE_FLAGS "-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources")
-target_compile_options(04-pbr PRIVATE -Wa,-I${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources)
 target_link_libraries(04-pbr PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib} ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/resources.apple.S ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/generated/resources/monkey.apple.S)
 
 # 自动复制资源文件到构建目录
