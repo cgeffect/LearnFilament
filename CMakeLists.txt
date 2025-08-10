@@ -52,12 +52,9 @@ list(APPEND SYS_LIBS ${OpenGL_FRAMEWORK})
 set(SDL3_LIBS -Wl,-framework,CoreMedia -Wl,-framework,CoreVideo -Wl,-framework,Cocoa -Wl,-framework,IOKit -Wl,-framework,ForceFeedback -Wl,-framework,Carbon -Wl,-framework,CoreAudio -Wl,-framework,AudioToolbox -Wl,-framework,AVFoundation -Wl,-framework,Foundation -Wl,-weak_framework,GameController -Wl,-weak_framework,Metal -Wl,-weak_framework,QuartzCore -Wl,-framework,CoreHaptics -lpthread -Wl,-weak_framework,UniformTypeIdentifiers -lm)
 list(APPEND SYS_LIBS ${SDL3_LIBS})
 
-file(GLOB_RECURSE allCpp 
-    ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/main.cpp
-)
-
-add_executable(hello_filament ${allCpp})
-target_include_directories(hello_filament PRIVATE ${LIVE_TRD_INCLUDE})
-target_link_libraries(hello_filament PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib} pthread m)
+# build exec
+add_executable(01-triangle ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/01-triangle/main.cpp)
+target_include_directories(01-triangle PRIVATE ${LIVE_TRD_INCLUDE})
+target_link_libraries(01-triangle PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
 
 message("--end rtcapp complie---")
