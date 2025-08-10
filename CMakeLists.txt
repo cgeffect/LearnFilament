@@ -57,4 +57,8 @@ add_executable(01-triangle ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/01-triangle/ma
 target_include_directories(01-triangle PRIVATE ${LIVE_TRD_INCLUDE})
 target_link_libraries(01-triangle PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
 
+add_executable(02-cube ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/02-cube/main.cpp)
+target_include_directories(02-cube PRIVATE ${LIVE_TRD_INCLUDE})
+target_link_libraries(02-cube PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
+
 message("--end rtcapp complie---")
