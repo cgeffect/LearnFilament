@@ -61,4 +61,8 @@ add_executable(02-cube ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/02-cube/main.cpp)
 target_include_directories(02-cube PRIVATE ${LIVE_TRD_INCLUDE})
 target_link_libraries(02-cube PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
 
+add_executable(03-morphing ${CMAKE_CURRENT_SOURCE_DIR}/macos-demo/03-morphing/main.cpp)
+target_include_directories(03-morphing PRIVATE ${LIVE_TRD_INCLUDE})
+target_link_libraries(03-morphing PRIVATE ${SYS_LIBS} ${SDL3_LIBRARY} ${filament_lib})
+
 message("--end rtcapp complie---")

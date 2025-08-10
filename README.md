@@ -1,8 +1,11 @@
 
 macos 使用cmake编译arm64架构的filament, 并且把头文件和库文件安装到当前目录脚本
+
+其中hellostereo这个示例需要开启DFILAMENT_ENABLE_MULTIVIEW
 ```
 cd filament
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../release/filament ../..
+mkdir out && cd out
+cmake -DCMAKE_BUILD_TYPE=Release -DFILAMENT_ENABLE_MULTIVIEW=ON -DFILAMENT_SAMPLES_STEREO_TYPE=-DCMAKE_INSTALL_PREFIX=../release/filament ..
 make -j12 
 make install
 ```
